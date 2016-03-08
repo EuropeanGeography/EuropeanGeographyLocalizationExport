@@ -4,40 +4,78 @@ import os
 import babelfish
 import pycountry
 
-# todo currency export - code + translation
-# there will be only code of currency attached to Country
-def export_translations(country):
+
+def append_to_file(path, string):
+    with open(path, 'a') as output:
+        output.write(string)
+
+
+def get_path(alpha3t_code):
+    language = babelfish.Language.fromalpha3t(alpha3t_code)
+    output_path = 'output' + os.path.sep
+    directory = 'values-' + language.alpha2
+    if language == babelfish.Language('eng'):
+        directory = 'values'
+    path = output_path + directory + os.path.sep
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path + 'strings.xml'
+
+
+def format_string(prefix, suffix, text):
+    pattern = '<string name=\"{0}_{1}\">{2}</string>\n'
+    return pattern.format(str(prefix.encode('utf-8')), str(suffix.encode('utf-8')), str(text.encode('utf-8')))
+
+
+def export_country_names(country):
     translations = country["translations"]
     for translation in translations.keys():
-        language = babelfish.Language.fromalpha3t(translation)
-        directory = 'values-' + language.alpha2
-        path = directory + os.path.sep + 'strings.xml'
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-        with open(path, 'a') as output:
-            output.write('<string name=\"{0}_name_{1}\">{2}</string>\n'
-                         .format(country['cca2'].lower(), 'common',
-                                 str(translations[translation]['common'].encode('utf-8'))))
-            output.write('<string name=\"{0}_name_{1}\">{2}</string>\n'
-                         .format(country['cca2'].lower(), 'official',
-                                 str(translations[translation]['official'].encode('utf-8'))))
+        append_to_file(get_path(translation),
+                       format_string(country['cca2'].lower(), 'name_common', translations[translation]['common']) +
+                       format_string(country['cca2'].lower(), 'name_official', translations[translation]['official']))
+    append_to_file(get_path('eng'),
+                   format_string(country['cca2'].lower(), 'name_common', country["name"]['common']) +
+                   format_string(country['cca2'].lower(), 'name_official', country["name"]['official']))
 
 
-countries = []
+def export_currencies_names(currencies):
+    for currency in currencies:
+        append_to_file(get_path('eng'),
+                       format_string(currency.lower(), 'currency_name', pycountry.currencies.get(letter=currency).name))
 
-values_to_copy = ["area", "cca2", "cioc", "name", "borders"]
-values_to_exclude = ["translations", "landlocked", "demonym"]
 
-with open('countries.json', 'r') as data_file:
-    data = json.load(data_file)
+def export_languages_names(languages):
+    for key in languages.keys():
+        append_to_file(get_path('eng'),
+                       format_string(key.lower(), 'language_name', languages[key]))
 
-for country in data:
-    new_country = {}
-    if country["region"] == "Europe":
-        for value in values_to_copy:
-            new_country[value] = country[value]
-        countries.append(new_country)
-        export_translations(country)
 
-with open('filtered_countries.json', 'w') as file:
-    file.write(json.dumps(countries))
+def main():
+    countries = []
+
+    values_to_exclude = ["translations", "landlocked", "demonym"]
+
+    with open('countries.json', 'r') as data_file:
+        data = json.load(data_file)
+
+    currencies = []
+    languages = {}
+    for country in data:
+        new_country = {}
+        if country["region"] == "Europe":
+            currencies += country["currency"]
+            languages.update(country["languages"])
+            for value in country:
+                if value not in values_to_exclude:
+                    new_country[value] = country[value]
+            countries.append(new_country)
+            export_country_names(country)
+
+    export_currencies_names(set(currencies))
+    export_languages_names(languages)
+
+    with open('filtered_countries.json', 'w') as file:
+        file.write(json.dumps(countries))
+
+if __name__ == "__main__":
+    main()
