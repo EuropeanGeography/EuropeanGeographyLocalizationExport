@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 import json
 import os
+import sys
 import babelfish
 import pycountry
+
+output_directory = "output"
 
 
 def append_to_file(path, string):
@@ -12,11 +15,11 @@ def append_to_file(path, string):
 
 def get_path(alpha3t_code):
     language = babelfish.Language.fromalpha3t(alpha3t_code)
-    output_path = 'output' + os.path.sep
+    output_path = output_directory
     directory = 'values-' + language.alpha2
     if language == babelfish.Language('eng'):
         directory = 'values'
-    path = output_path + directory + os.path.sep
+    path = output_path + os.path.sep + directory + os.path.sep
     if not os.path.exists(path):
         os.makedirs(path)
     return path + 'strings.xml'
@@ -50,12 +53,12 @@ def export_languages_names(languages):
                        format_string(key.lower(), 'language_name', languages[key]))
 
 
-def main():
+def main(source_path):
     countries = []
 
     values_to_exclude = ["translations", "landlocked", "demonym"]
 
-    with open('countries.json', 'r') as data_file:
+    with open(source_path, 'r') as data_file:
         data = json.load(data_file)
 
     currencies = []
@@ -77,5 +80,9 @@ def main():
     with open('filtered_countries.json', 'w') as file:
         file.write(json.dumps(countries))
 
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        print("Usage: filter.py source_file.json")
+    else:
+        main(source_path=sys.argv[1])
