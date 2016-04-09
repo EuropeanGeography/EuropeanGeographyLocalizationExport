@@ -53,6 +53,12 @@ def export_languages_names(languages):
                        format_string(key.lower(), 'language_name', languages[key]))
 
 
+def export_capital_names(country):
+    capital = country["capital"]
+    append_to_file(get_path('eng'),
+                   format_string(country['cca2'].lower(), "capital", capital))
+
+
 def main(source_path):
     countries = []
 
@@ -73,6 +79,7 @@ def main(source_path):
                     new_country[value] = country[value]
             countries.append(new_country)
             export_country_names(country)
+            export_capital_names(country)
 
     export_currencies_names(set(currencies))
     export_languages_names(languages)
